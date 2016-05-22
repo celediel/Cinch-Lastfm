@@ -34,22 +34,22 @@ bot.start
 Contained Commands
 ------------------
 
-**[np <username>]**
+**[np (username)]**
 Displays last played track from user's saved username, or specified username.
 
-**[(plays|artist) <artistname>]**
+**[(plays|artist) (artistname)]**
 Displays info, and user playcount if played, of specified artist.
 
 **[top(artists|tracks|albums) (7d|1m|3m|6m|1y|overall)]**
 Displays user's top artists/tracks/albums from specified period.
 
-**[tag <tag>]**
+**[tag (tag)]**
 Displays info about specified tag, if it exists.
 
-**[profile <username>]**
+**[profile (username)]**
 Display user's or specified user's profile information.
 
-**[fmset <username>]**
+**[fmset (username)]**
 Store specified username in the database.
 
 **[fmget]**
