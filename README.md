@@ -34,7 +34,26 @@ bot.start
 Contained Commands
 ------------------
 
-TODO: this
+**[np <username>]**
+Displays last played track from user's saved username, or specified username.
+
+**[(plays|artist) <artistname>]**
+Displays info, and user playcount if played, of specified artist.
+
+**[top(artists|tracks|albums) (7d|1m|3m|6m|1y|overall)]**
+Displays user's top artists/tracks/albums from specified period.
+
+**[tag <tag>]**
+Displays info about specified tag, if it exists.
+
+**[profile <username>]**
+Display user's or specified user's profile information.
+
+**[fmset <username>]**
+Store specified username in the database.
+
+**[fmget]**
+Displays stored username.
 
 License
 -------
