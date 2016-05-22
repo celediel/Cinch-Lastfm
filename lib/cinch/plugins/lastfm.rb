@@ -20,7 +20,7 @@ module Cinch
         @api_key = config[:api_key]
         @api_url = "#{@base_url}#{@api_key}&method="
         # @db = Sequel.sqlite('riria.db')
-        filename = "#{@bot.nick}.db".downcase
+        filename = "#{@bot.nick.downcase}.db"
         @db = Sequel.sqlite(filename)
       end
 
