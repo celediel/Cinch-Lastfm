@@ -19,9 +19,9 @@ module Cinch
         @base_url = 'http://ws.audioscrobbler.com/2.0/?api_key='
         @api_key = config[:api_key]
         @api_url = "#{@base_url}#{@api_key}&method="
-        # @db = Sequel.sqlite('riria.db')
-        filename = "#{@bot.nick.downcase}.db"
-        @db = Sequel.sqlite(filename)
+        @db = Sequel.sqlite('riria.db')
+        # filename = "#{@bot.nick.downcase}.db"
+        # @db = Sequel.sqlite(filename)
       end
 
       private

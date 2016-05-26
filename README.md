@@ -1,4 +1,4 @@
-Automode Plugin for Cinch
+Last.fm Plugin for Cinch
 ========================
 Lastfm plugin for Cinch, featuring mulitple commands.
 Display recently played tracks, search artists, display top
