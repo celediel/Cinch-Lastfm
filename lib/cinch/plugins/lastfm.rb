@@ -7,6 +7,7 @@ require 'time_diff' # Calculating difference in times
 require 'httparty' # Better HTTP Opening
 require 'addressable/uri'
 require 'webrick/httputils' # Fix for unicode URLs
+require 'logger' # Real debugging not my dumb shit
 
 module Cinch
   module Plugins
@@ -16,6 +17,8 @@ module Cinch
 
       def initialize(*args)
         super
+        @log = Logger.new(STDOUT)
+        @log.level = Logger::DEBUG
         @base_url = 'http://ws.audioscrobbler.com/2.0/?api_key='
         @api_key = config[:api_key]
         @api_url = "#{@base_url}#{@api_key}&method="
@@ -40,11 +43,6 @@ module Cinch
         tagarray
       end
 
-      # Debug shit
-      def header(title)
-        puts '=' * 10 + " #{title} " + '=' * 10
-      end
-
       public
 
       # And now onto the commands
@@ -62,11 +60,12 @@ module Cinch
         begin
           page = HTTParty.get(Addressable::URI.parse(request))
           doc = Nokogiri::XML(page.body)
-          # puts "Fetching #{request}"
+          @log.debug "Fetching #{request}"
 
           if doc.xpath('//lfm')[0]['status'] == 'failed'
-            puts request
-            puts doc
+            @log.debug request
+            @log.debug doc
+            @log.error "API Call failed: #{doc.xpath('//error')[0].text}"
             m.reply "Error: #{doc.xpath('//error')[0].text}"
             return
           end
@@ -83,7 +82,7 @@ module Cinch
 
         begin
           album = doc.xpath('//track//album')[0].text
-          puts "album = #{album}"
+          @log.debug "album = #{album}"
         rescue NoMethodError
           album = nil
         end
@@ -92,14 +91,13 @@ module Cinch
 
         # Track info
         begin
-          header 'TRACK INFO'
+          @log.debug 'TRACK INFO'
           doop = WEBrick::HTTPUtils.escape_form(artist)
           pood = WEBrick::HTTPUtils.escape_form(title)
-          # puts doop
           trackreq = "#{@api_url}track.getInfo&artist=#{doop}&track=#{pood}&user=#{user}#{ac}"
-          puts "trackreq: #{trackreq}"
+          @log.debug "trackreq: #{trackreq}"
           query = trackreq.force_encoding('binary')
-          puts "query: #{query}"
+          @log.debug "query: #{query}"
           page = HTTParty.get(Addressable::URI.parse(query))
           trackdoc = Nokogiri::XML(page.body)
 
@@ -108,20 +106,18 @@ module Cinch
               m.reply error_code(trackdoc.xpath('//error')['code'].to_i)
               return
             rescue TypeError
-              puts 'derp'
+              @log.warn 'Didn\'t fail?'
             end
           end
-          header 'trackdoc'
-          puts trackdoc
-          header 'end trackdoc'
+          @log.debug trackdoc
           # listeners = trackdoc.xpath('//track//listeners').text
           # playcount = trackdoc.xpath('//track//playcount').text
           userpc = trackdoc.xpath('//track//userplaycount').text
           loved = trackdoc.xpath('//track//userloved').text.to_i
           # trackinfo = true
           userplayed = true
-          puts userpc
-          header 'END TRACK INFO'
+          @log.debug userpc
+          @log.debug 'END TRACK INFO'
         # rescue OpenURI::HTTPError
           # trackinfo = false
         rescue NoMethodError
@@ -131,12 +127,12 @@ module Cinch
         # Artist info
         begin
           doop = WEBrick::HTTPUtils.escape_form(artist)
-          # puts doop
+          @log.debug doop
           artistreq = "#{@api_url}artist.getInfo#{ac}&artist=#{doop}&user=#{user}"
           query = artistreq.force_encoding('binary')
           page = HTTParty.get(Addressable::URI.parse(query))
           artistdoc = Nokogiri::XML(page.body)
-          # puts "Fetching #{query}"
+          @log.debug "Fetching #{query}"
           if artistdoc.xpath('//lfm')[0]['status'] == 'failed'
             m.reply error_code(artistdoc.xpath('//error')[0]['code'].to_i)
             return
@@ -200,7 +196,7 @@ module Cinch
                    list[0..user_index - 1] + list[user_index + 2..-1]
                  end
           query = band.join ' '
-          puts query
+          @log.debug query
           user = list[user_index + 1]
           user = get_user(user) unless get_user(user).nil?
         else
@@ -215,7 +211,7 @@ module Cinch
         artistreq = "#{@api_url}#{method}#{ac}&artist=#{artist}&user=#{user}"
         page = HTTParty.get(Addressable::URI.parse(artistreq))
         doc = Nokogiri::XML(page.body)
-        puts "Fetching #{artistreq}"
+        @log.debug "Fetching #{artistreq}"
 
         begin
           a = doc.xpath('//artist//name')[0].text
@@ -263,14 +259,14 @@ module Cinch
         user2 = get_user(m.user.nick) unless user2
 
         creq = "#{@api_url}#{method}&type1=user&type2=user&value1=#{user1}&value2=&#{user2}"
-        puts creq
+        @log.debug creq
         page = HTTParty.get(Addressable::URI.parse(creq))
         doc = Nokogiri::XML(page.body)
         if doc.xpath('//lfm')[0]['status'] == 'failed'
           m.reply("#{doc.xpath('//error')[0]['code']}: #{doc.xpath('//error').text}")
           # return
         end
-        puts doc
+        @log.debug doc
       end
 
       # My probably lousy attempt at not reusing code
@@ -332,7 +328,7 @@ module Cinch
         end
 
         urlget = "#{@api_url}#{method}&period=#{period}&user=#{user}&limit=10"
-        puts urlget
+        @log.debug urlget
         page = HTTParty.get(Addressable::URI.parse(urlget))
         doc = Nokogiri::XML(page.body)
         # puts "doc: #{doc.text}"
@@ -355,12 +351,12 @@ module Cinch
 
           # Combine the two arrays into a single hash.
           artplays = Hash[artists.zip(plays_in_period)]
-          puts "Artists: #{artists}: #{artists.class}"
-          puts "Artplays: #{artplays}: #{artplays.class}"
+          @log.debug "Artists: #{artists}: #{artists.class}"
+          @log.debug "Artplays: #{artplays}: #{artplays.class}"
 
           len = artplays.length >= 5 ? 5 : artplays.length
           artplays.first(len).each_with_index do |(name, plays), i|
-            puts "name: #{name} :: plays: #{plays}, i: #{i}"
+            @log.debug "name: #{name} :: plays: #{plays}, i: #{i}"
             output << ":: #{name} (#{plays})"
             output.concat i == len - 1 ? ' ::' : ' '
           end
@@ -372,9 +368,9 @@ module Cinch
           doc.xpath('/lfm/toptracks/track/name').each { |i| tracks << i.text }
           doc.xpath('//track//playcount').each { |i| track_plays << i.text }
 
-          puts "Artists: #{artists.length}, #{artists}"
-          puts "Tracks: #{tracks.length}, #{tracks}"
-          puts "Playcount: #{track_plays.length}, #{track_plays}"
+          @log.debug "Artists: #{artists.length}, #{artists}"
+          @log.debug "Tracks: #{tracks.length}, #{tracks}"
+          @log.debug "Playcount: #{track_plays.length}, #{track_plays}"
 
           unless artists.length == tracks.length && track_plays.length == tracks.length
             # Something went horribly wrong, abort!
@@ -394,9 +390,9 @@ module Cinch
           doc.xpath('/lfm/topalbums/album/name').each { |i| albums << i.text }
           doc.xpath('//album//playcount').each { |i| album_plays << i.text }
 
-          puts "Artists: #{artists.length}, #{artists}"
-          puts "Albums: #{albums.length}, #{albums}"
-          puts "Playcount: #{album_plays.length}, #{album_plays}"
+          @log.debug "Artists: #{artists.length}, #{artists}"
+          @log.debug "Albums: #{albums.length}, #{albums}"
+          @log.debug "Playcount: #{album_plays.length}, #{album_plays}"
 
           unless artists.length == albums.length && album_plays.length == albums.length
             # Something went horribly wrong, abort!
@@ -421,7 +417,7 @@ module Cinch
 
         method = 'user.getTopTags'
         urlget = "#{@api_url}#{method}&user=#{user}&limit=10"
-        puts urlget
+        @log.debug urlget
         page = HTTParty.get(Addressable::URI.parse(urlget))
         doc = Nokogiri::XML(page.body)
 
@@ -436,7 +432,7 @@ module Cinch
 
         len = tagusage.length >= 5 ? 5 : tagusage.length
         tagusage.first(len).each_with_index do |(name, plays), i|
-          puts "name: #{name} :: plays: #{plays}, i: #{i}"
+          @log.debug "name: #{name} :: plays: #{plays}, i: #{i}"
           output << ":: #{name} (#{plays})"
           output.concat i == len - 1 ? ' ::' : ' '
         end
@@ -448,7 +444,7 @@ module Cinch
       def tag_search(m, query)
         method = 'tag.getInfo'
         urlget = "#{@api_url}#{method}&tag=#{query.strip}"
-        puts urlget
+        @log.debug urlget
         page = HTTParty.get(Addressable::URI.parse(urlget))
         doc = Nokogiri::XML(page.body)
 
